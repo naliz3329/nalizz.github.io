@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校園風公民大富翁 - 國二公民互動學習遊戲</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #fef6ec 0%, #eefbf7 100%);
+            min-height: 100vh;
+        }
+        .chalkboard {
+            background-color: #2b3e35;
+            border: 8px solid #8b5a2b;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.15);
+        }
+        /* 10x10 Rectangular Loop Grid Layout for 35 Tiles */
+        .board-grid-rect {
+            display: grid;
+            grid-template-columns: repeat(10, minmax(0, 1fr));
+            grid-template-rows: repeat(10, minmax(0, 1fr));
+            gap: 4px;
+            width: 100%;
+            max-width: 750px;
+            aspect-ratio: 1 / 1;
+        }
+        @keyframes bounce-short {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+        .animate-bounce-short {
+            animation: bounce-short 0.6s ease-in-out infinite;
+        }
+        @keyframes dice-shake {
+            0% { transform: rotate(0deg) scale(1); }
+            20% { transform: rotate(-15deg) scale(1.1); }
+            40% { transform: rotate(15deg) scale(1.1); }
+            60% { transform: rotate(-10deg) scale(1.05); }
+            80% { transform: rotate(10deg) scale(1.05); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+        .dice-animating {
+            animation: dice-shake 0.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="text-slate-700 flex flex-col min-h-screen">
+
+    <!-- Header (School style navbar) -->
+    <header class="bg-[#8b5a2b] text-amber-50 shadow-md py-3 px-6 flex flex-wrap justify-between items-center border-b-4 border-[#6c4420]">
+        <div class="flex items-center space-x-3">
+            <div class="bg-amber-100 text-[#8b5a2b] p-2.5 rounded-2xl font-black text-xl shadow">
+                <i class="fa-solid fa-school"></i>
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-black tracking-wider text-white">校園風 · 公民大富翁</h1>
+                <p class="text-xs text-amber-200">國二公民教育互動學習（35格康軒二上第三單元專屬題庫）</p>
+            </div>
+        </div>
+        <div class="mt-2 sm:mt-0 flex items-center space-x-2">
+            <button onclick="openRulesModal()" class="bg-[#a47148] hover:bg-[#8b5a2b] text-amber-100 text-sm font-bold px-4 py-2 rounded-xl transition shadow flex items-center space-x-1 border border-amber-300/30">
+                <i class="fa-solid fa-book-open"></i><span>遊戲說明書</span>
+            </button>
+            <button onclick="resetGame()" class="bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold px-4 py-2 rounded-xl transition shadow flex items-center space-x-1">
+                <i class="fa-solid fa-rotate-right"></i><span>重新開始</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow container mx-auto p-4 max-w-7xl flex flex-col lg:flex-row gap-6 items-center lg:items-start justify-center">
+
+        <!-- Setup Screen (Player & Animal Pawns Config) -->
+        <div id="setup-screen" class="w-full max-w-3xl bg-white/95 backdrop-blur rounded-3xl shadow-xl p-6 md:p-10 flex flex-col justify-center items-center border-4 border-amber-100 my-auto">
+            <div class="w-full text-center">
+                <div class="inline-block bg-emerald-100 text-emerald-800 px-4 py-1.5 rounded-full text-sm font-bold mb-3 shadow-sm">
+                    <i class="fa-solid fa-paw mr-1"></i> 8位同學與專屬Ｑ版動物旗子（35格環形長方形挑戰）
+                </div>
+                <h2 class="text-3xl md:text-4xl font-black text-slate-800 mb-3">歡迎來到公民課堂大冒險！</h2>
+                <p class="text-slate-500 mb-8 text-sm md:text-base">請自訂參與的 8 位同學姓名，每位同學代表一隻可愛小動物旗子。挑戰 35 格康軒二上第三單元精選題，答對前進，最先繞完一圈者勝出！</p>
+
+                <!-- Player & Animal input rows -->
+                <div id="player-inputs-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 text-left">
+                    <!-- Injected via JS -->
+                </div>
+
+                <div class="flex justify-center">
+                    <button onclick="startGame()" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-lg font-black px-10 py-4 rounded-2xl shadow-xl transform transition hover:scale-105 active:scale-95 flex items-center space-x-3">
+                        <i class="fa-solid fa-play"></i><span>準備就緒，上課囉！</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Screen (Hidden initially) -->
+        <div id="game-screen" class="hidden w-full flex flex-col lg:flex-row gap-6 justify-center items-start">
+            
+            <!-- Left/Center Area: Rectangular Board -->
+            <div class="flex-grow flex flex-col items-center justify-center w-full max-w-3xl">
+                <div class="bg-white rounded-3xl shadow-xl p-4 md:p-6 border-4 border-amber-100 w-full flex justify-center">
+                    <div id="monopoly-board" class="board-grid-rect">
+                        <!-- Tiles generated via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Area: Controls & Chalkboard Leaderboard -->
+            <div class="w-full lg:w-96 flex flex-col gap-4">
+                
+                <!-- Active Turn Status Card -->
+                <div class="bg-white rounded-2xl shadow-md p-4 flex flex-col gap-3 border-2 border-emerald-100">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div id="current-player-avatar" class="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-md bg-amber-200">
+                                🐱
+                            </div>
+                            <div>
+                                <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">現在輪到值日生</div>
+                                <h3 id="current-player-name" class="text-base font-black text-slate-800">玩家1</h3>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[11px] text-slate-400 font-bold">目前位置</div>
+                            <div class="text-sm font-extrabold text-emerald-600"><span id="current-player-pos">第 0 格</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                        <div id="dice-display-box" class="hidden text-amber-800 font-bold flex items-center space-x-2">
+                            <span class="text-3xl animate-bounce" id="rolling-dice-symbol">🎲</span>
+                            <span class="text-base font-black"><span id="dice-result-num">6</span> 點</span>
+                        </div>
+                        <div id="dice-placeholder-text" class="text-xs text-slate-400 font-medium">請點擊下方中心巨大骰子或按鈕</div>
+
+                        <button id="roll-dice-btn" onclick="rollDice()" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black px-5 py-2.5 rounded-xl shadow-md flex items-center space-x-2 transition transform active:scale-95 text-sm">
+                            <i class="fa-solid fa-dice text-lg" id="dice-icon"></i><span id="roll-btn-text">擲骰子！</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chalkboard Leaderboard -->
+                <div class="chalkboard rounded-3xl p-4 text-amber-50 flex flex-col shadow-xl">
+                    <h3 class="text-sm font-black mb-3 pb-2 border-b border-amber-500/30 flex items-center justify-between">
+                        <span><i class="fa-solid fa-chalkboard-user text-amber-300 mr-2"></i>公民學習排行榜</span>
+                        <span class="text-[10px] bg-amber-500/20 text-amber-200 px-2 py-0.5 rounded-full font-bold">35格矩形環</span>
+                    </h3>
+
+                    <div id="leaderboard-list" class="space-y-2 overflow-y-auto max-h-[350px] pr-1">
+                        <!-- Leaderboard items injected via JS -->
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Question Modal Popup -->
+    <div id="question-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 md:p-8 transform transition-all border-4 border-emerald-100">
+            <div class="flex justify-between items-center mb-3">
+                <span id="q-category-tag" class="bg-emerald-100 text-emerald-800 text-xs font-black px-3 py-1 rounded-full">康軒二上第三單元</span>
+                <span class="text-xs text-slate-400 font-bold">目標格：第 <span id="q-target-tile">1</span> 格</span>
+            </div>
+            
+            <h3 id="q-title" class="text-lg md:text-xl font-black text-slate-900 mb-4 leading-snug">題目載入中...</h3>
+            
+            <div id="q-options" class="space-y-2.5 mb-5">
+                <!-- Options buttons injected via JS -->
+            </div>
+
+            <div id="q-feedback" class="hidden rounded-2xl p-4 text-sm font-bold mb-4"></div>
+
+            <div class="flex justify-end">
+                <button id="q-next-btn" onclick="closeQuestionModal()" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white font-black px-6 py-2.5 rounded-xl shadow transition">
+                    確定 / 下一位同學
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chance Card Modal Popup -->
+    <div id="chance-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-amber-50 rounded-3xl shadow-2xl max-w-lg w-full p-6 md:p-8 border-4 border-amber-300 text-center">
+            <div class="w-20 h-20 bg-amber-400 text-amber-950 rounded-3xl flex items-center justify-center mx-auto mb-4 text-4xl shadow-inner animate-bounce">
+                <i class="fa-solid fa-gift"></i>
+            </div>
+            <span class="bg-amber-200 text-amber-900 text-xs font-black px-3 py-1 rounded-full">機會命運交錯格</span>
+            <h3 class="text-2xl font-black text-slate-900 my-3">🎉 恭喜踩中機會格！</h3>
+            <p id="chance-desc" class="text-sm md:text-base text-slate-700 mb-6 leading-relaxed">
+                你抵達了特殊機會格！您可以選擇「放棄挑戰」維持原地，或者選擇<strong>「多回答一題公民題」</strong>！若答對即可獲得特權：讓自己前進 2 格 或 讓指定對手後退 2 格！
+            </p>
+            <div class="flex flex-col sm:flex-row justify-center gap-3">
+                <button onclick="acceptChanceChallenge()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-6 py-3 rounded-xl shadow transition">
+                    接受挑戰（多答一題贏取特權）
+                </button>
+                <button onclick="skipChanceChallenge()" class="bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold px-6 py-3 rounded-xl shadow transition">
+                    放棄並結束回合
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chance Reward Selection Modal -->
+    <div id="chance-reward-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 md:p-8 border-4 border-emerald-300 text-center">
+            <div class="w-16 h-16 bg-emerald-100 text-emerald-700 rounded-3xl flex items-center justify-center mx-auto mb-3 text-3xl">
+                <i class="fa-solid fa-star"></i>
+            </div>
+            <h3 class="text-2xl font-black text-slate-900 mb-2">挑戰成功！獲得機會特權</h3>
+            <p class="text-sm text-slate-600 mb-6">您成功答對了機會附加題！請選擇一項特權：</p>
+            
+            <div class="space-y-3 mb-6">
+                <button onclick="applyChanceReward('forward')" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black p-4 rounded-2xl shadow hover:opacity-95 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-forward"></i>
+                    <span>選擇 A：讓自己直接前進 2 格</span>
+                </button>
+                
+                <div class="bg-amber-50 p-4 rounded-2xl border border-amber-200 text-left">
+                    <label class="block text-xs font-bold text-amber-800 mb-2">選擇 B：讓指定對手後退 2 格</label>
+                    <div class="flex gap-2">
+                        <select id="target-opponent-select" class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 w-full focus:outline-none focus:ring-2 focus:ring-amber-500">
+                            <!-- Injected via JS -->
+                        </select>
+                        <button onclick="applyChanceReward('backward')" class="bg-amber-600 hover:bg-amber-500 text-white font-black px-5 py-2 rounded-xl text-sm shadow">
+                            確認指定
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rules Modal Popup -->
+    <div id="rules-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 md:p-8 border-4 border-amber-100">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-book-open text-amber-600 mr-2"></i>公民大富翁遊戲說明</h3>
+                <button onclick="closeRulesModal()" class="text-slate-400 hover:text-slate-600 font-bold text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-sm text-slate-600 leading-relaxed">
+                <p>1. <strong>參賽角色</strong>：支援 8 位同學，每人擁有專屬可愛小動物旗子（貓咪、狗狗、兔子、小熊、企鵝、狐狸、青蛙、貓頭鷹）。</p>
+                <p>2. <strong>35格長方形環形棋盤</strong>：棋盤採矩形外圍環形佈局，總共 35 格，格子內數字非常巨大，每格顏色繽紛。</p>
+                <p>3. <strong>中心資訊區</strong>：「公民大富翁」標題與遊戲資訊完美置於棋盤正中央。</p>
+                <p>4. <strong>不重複題庫</strong>：題庫採用康軒二上公民第三單元精選 35 題，系統自動管理，不重複出現。</p>
+                <p>5. <strong>移動規則</strong>：<strong>「答對才能前進，答錯留在原地」</strong>。擲骰後彈出公民考題，答對者順利前進；答錯則顯示正確解答與解析並留在原位。</p>
+                <p>6. <strong>排行榜</strong>：遊戲結束後會顯示完整光榮排名！</p>
+            </div>
+            <div class="mt-6 text-center">
+                <button onclick="closeRulesModal()" class="bg-[#8b5a2b] hover:bg-[#6c4420] text-amber-50 font-bold px-6 py-2.5 rounded-xl shadow">知道了！</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victory-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-xl w-full p-6 md:p-10 text-center border-4 border-amber-200">
+            <div class="w-20 h-20 bg-amber-100 text-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-4 text-4xl shadow-inner animate-bounce">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h2 class="text-3xl font-black text-slate-900 mb-2">下課鐘聲響起！遊戲結束！</h2>
+            <p id="winner-announcement" class="text-emerald-600 font-extrabold text-lg mb-6">恭喜 玩家1 榮獲本次公民科達人總冠軍！</p>
+            
+            <div class="bg-amber-50/60 rounded-2xl p-4 mb-6 text-left max-h-60 overflow-y-auto border border-amber-200">
+                <h4 class="text-xs font-bold text-amber-800 uppercase mb-3"><i class="fa-solid fa-medal mr-1"></i>最終光榮排行榜</h4>
+                <div id="final-ranking-list" class="space-y-2">
+                    <!-- Final rankings injected here -->
+                </div>
+            </div>
+
+            <div class="flex justify-center space-x-4">
+                <button onclick="resetGame()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-8 py-3 rounded-xl shadow-lg transition">
+                    重新開新局
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Game Logic -->
+    <script>
+        // 8 Player Animal Pawns Setup
+        const defaultPlayerConfigs = [
+            { id: 0, name: "玩家1 (小明)", animal: "🐱", color: "#f87171" },
+            { id: 1, name: "玩家2 (小華)", animal: "🐶", color: "#fb923c" },
+            { id: 2, name: "玩家3 (小美)", animal: "🐰", color: "#facc15" },
+            { id: 3, name: "玩家4 (志明)", animal: "🐻", color: "#4ade80" },
+            { id: 4, name: "玩家5 (春嬌)", animal: "🐧", color: "#22d3ee" },
+            { id: 5, name: "玩家6 (大同)", animal: "🦊", color: "#60a5fa" },
+            { id: 6, name: "玩家7 (雅婷)", animal: "🐸", color: "#c084fc" },
+            { id: 7, name: "玩家8 (家豪)", animal: "🦉", color: "#f472b6" }
+        ];
+
+        // 35 Rectangular Loop Grid Coordinates mapping (10x10 perimeter loop)
+        const tileCoordinates = [
+            {r: 9, c: 9}, {r: 9, c: 8}, {r: 9, c: 7}, {r: 9, c: 6}, {r: 9, c: 5},
+            {r: 9, c: 4}, {r: 9, c: 3}, {r: 9, c: 2}, {r: 9, c: 1}, {r: 9, c: 0},
+            {r: 8, c: 0}, {r: 7, c: 0}, {r: 6, c: 0}, {r: 5, c: 0}, {r: 4, c: 0},
+            {r: 3, c: 0}, {r: 2, c: 0}, {r: 1, c: 0}, {r: 0, c: 0}, {r: 0, c: 1},
+            {r: 0, c: 2}, {r: 0, c: 3}, {r: 0, c: 4}, {r: 0, c: 5}, {r: 0, c: 6},
+            {r: 0, c: 7}, {r: 0, c: 8}, {r: 0, c: 9}, {r: 1, c: 9}, {r: 2, c: 9},
+            {r: 3, c: 9}, {r: 4, c: 9}, {r: 5, c: 9}, {r: 6, c: 9}, {r: 7, c: 9}
+        ];
+
+        const pastelColors = [
+            "bg-red-50 border-red-200 text-red-700",
+            "bg-orange-50 border-orange-200 text-orange-700",
+            "bg-amber-50 border-amber-200 text-amber-700",
+            "bg-yellow-50 border-yellow-200 text-yellow-700",
+            "bg-lime-50 border-lime-200 text-lime-700",
+            "bg-emerald-50 border-emerald-200 text-emerald-700",
+            "bg-teal-50 border-teal-200 text-teal-700",
+            "bg-cyan-50 border-cyan-200 text-cyan-700",
+            "bg-sky-50 border-sky-200 text-sky-700",
+            "bg-blue-50 border-blue-200 text-blue-700"
+        ];
+
+        // Exact 35 Questions Provided by User for Kang Hsuan Grade 8 Civics Unit 3
+        const masterQuestionBank = [
+            {
+                question: "下列對於我國政府採用「五權分立」學說的敘述，何者正確？",
+                options: [
+                    "完全採行法國孟德斯鳩的理論",
+                    "將立法權交由最高法院來行使",
+                    "為了防止議會專制，將立法權與監察權合併",
+                    "採分權制衡，避免政府權力過於集中"
+                ],
+                answer: 3,
+                explanation: "我國採五權分立，並透過分權制衡避免政府權力過於集中。"
+            },
+            {
+                question: "如果行政機關有違法或不當的行為發生，使人民權益遭受損害，人民可依法定程序向司法機關尋求協助。上述內容最能說明哪一種概念？",
+                options: [
+                    "定期授權",
+                    "主權在民",
+                    "分權制衡",
+                    "政黨政治"
+                ],
+                answer: 2,
+                explanation: "行政與司法機關分立與相互制衡，保障人民權益。"
+            },
+            {
+                question: "在現代法治國家中，法律與統治者之間的關係，以下敘述何者正確？",
+                options: [
+                    "法律由統治者視需求制定，並加以執行",
+                    "法律至上，按法律之規範直接指定統治者",
+                    "法律由人民選出的代表制定，統治者應依法而治",
+                    "原則上依法而治，但必要時可按統治者的意思，直接調整法律規定"
+                ],
+                answer: 2,
+                explanation: "法治國家強調法律至上，統治者必須依法而治。"
+            },
+            {
+                question: "在日本社會，進入職場後在一家公司做到退休，是最典型的職涯。至於學生或家庭主婦以打工賺取時薪來貼補生活費，則被視為非典型勞工。基於學生會畢業，而主婦另有丈夫養家的想法，他們與正職員工「同工不同酬」也被視為理所當然。根據上述，非典型勞工在何種概念上受到不公平的對待？",
+                options: [
+                    "權利",
+                    "權力",
+                    "主權",
+                    "親權"
+                ],
+                answer: 0,
+                explanation: "同工不同酬損害了非典型勞工應享有的平等權利。"
+            },
+            {
+                question: "我國人民能行使選舉的權利，投票選出民意代表及行政首長，賦予政府治理國家的權力。這句話展現下列何種精神？",
+                options: [
+                    "政府的權力至高無上不受限",
+                    "政府的權力來自人民的授權",
+                    "權力與權利兩者間並無關聯",
+                    "人民允許政府任意擴張權力"
+                ],
+                answer: 1,
+                explanation: "民主國家的政府公權力源自於人民的授權。"
+            },
+            {
+                question: "權力及權利皆與人們的生活息息相關，下列關於兩者的敘述，何者正確？",
+                options: [
+                    "政府可對違法人民依法開罰，是由於其擁有公權力",
+                    "權力是指法律保護人民所享有的利益，可免於受害",
+                    "人民擁有權力，因此可向政府要求必要的協助",
+                    "人民擁有權利，因此不得拒絕政府的各種要求"
+                ],
+                answer: 0,
+                explanation: "政府依法開罰是公權力的展現。"
+            },
+            {
+                question: "新聞報導：「屏東縣枋寮鄉前任鄉長因任內涉貪被羈押，現任鄉長也因涉工程收回扣弊案而被羈押。」上述鄉長涉貪而被羈押，彰顯下列何者的行使？",
+                options: [
+                    "主權",
+                    "權力",
+                    "權利",
+                    "人治"
+                ],
+                answer: 1,
+                explanation: "檢調與法院依法進行羈押與偵審，屬於司法與偵查公權力的行使。"
+            },
+            {
+                question: "康康國的法律沒有一定的規範標準，全憑國家主席諾克的好惡而專斷獨行，法律的制定也沒有一定的立法程序，諾克就是法律，即使政策錯誤也不必對人民負責。由上可知，康康國屬於下列何種社會？",
+                options: [
+                    "法治社會",
+                    "人治社會",
+                    "民主社會",
+                    "自由社會"
+                ],
+                answer: 1,
+                explanation: "全憑個人好惡、無固定法律與程序為典型的人治社會。"
+            },
+            {
+                question: "我國現行的政府組織與西方三權分立不同之處，主要在於另行設立了哪兩個機關？",
+                options: [
+                    "考試機關、監察機關",
+                    "立法機關、司法機關",
+                    "監察機關、司法機關",
+                    "立法機關、考試機關"
+                ],
+                answer: 0,
+                explanation: "我國五權分立額外設立了考試院與監察院。"
+            },
+            {
+                question: "「在○○中，法律是由統治者或少數具有權勢的人做決定，因此人民的生命、自由、財產較無法獲得保障。」根據內容判斷，文中的○○應填入下列何者？",
+                options: [
+                    "法治社會",
+                    "民主國家",
+                    "人治社會",
+                    "我國社會"
+                ],
+                answer: 2,
+                explanation: "人治社會由統治者決定，人權缺乏保障。"
+            },
+            {
+                question: "小涵問老師：「為什麼民主國家需要分權，而不是由一個強有力的機構直接管理所有的事務？」下列何者最可能是老師的回答？",
+                options: [
+                    "分權讓政府更有效率的推動政策",
+                    "分權讓政府完全掌握所有的權力",
+                    "分權讓人民隨時參與政府的決策",
+                    "分權能約束政府運作，避免濫權"
+                ],
+                answer: 3,
+                explanation: "分權制衡的核心目的在於約束政府運作，避免濫權。"
+            },
+            {
+                question: "新冠肺炎疫情期間，行政院推出簡訊實聯制，結合電信業者簡訊發送機制及1922，民眾出入超商、量販店、百貨公司、餐廳等各種場所，需要掃碼、點選連結、發簡訊，完成實聯制登錄後才能進入。政府是基於下列何者而能夠推動上述制度？",
+                options: [
+                    "權利",
+                    "權力",
+                    "主權",
+                    "人權"
+                ],
+                answer: 1,
+                explanation: "政府推動防疫政策是公權力的行使。"
+            },
+            {
+                question: "我國中央政府處理全國經費大事，分工必須清楚嚴謹。行政院主計總處彙整好各部會預算後，在8月底前會將次年預算書送到立法院審查。行政院依據審查通過的預算執行經費，執行後再由監察院審核決算。各部會各司其職，展現我國何種建構政府的基本原則？",
+                options: [
+                    "三權分立",
+                    "分權制衡",
+                    "中央集權",
+                    "責任政治"
+                ],
+                answer: 1,
+                explanation: "行政、立法、監察各司其職並互相制衡。"
+            },
+            {
+                question: "對於違反交通規則，或是在新冠肺炎疫情期間未依規定配戴口罩的民眾，警方予以開罰，彰顯下列何種概念？",
+                options: [
+                    "自制力",
+                    "公權力",
+                    "自主性",
+                    "主權在民"
+                ],
+                answer: 1,
+                explanation: "警方依法開罰展現了國家的公權力。"
+            },
+            {
+                question: "民主國家實行法治，以保障人權與實現人性尊嚴，下列關於法治社會的敘述，何者正確？",
+                options: [
+                    "法律由專制君主做決定",
+                    "法律經由立法程序制定",
+                    "法律常變動無一致標準",
+                    "立法的目的是控制人民"
+                ],
+                answer: 1,
+                explanation: "法治社會的法律必須經由民主立法程序制定以保障人權。"
+            },
+            {
+                question: "在琪琪的班上，每位幹部都希望善盡職責。下列哪一位幹部的做法，不符合法治的精神？",
+                options: [
+                    "總務股長自行要求每人繳500元班費",
+                    "服務股長請未依規定打掃的同學打掃",
+                    "副班長清點同學們上課的出缺席狀況",
+                    "風紀股長登記上課愛聊天說話的同學"
+                ],
+                answer: 0,
+                explanation: "總務股長未經合法程序與全班共識擅自規定繳費，不符合法治原則。"
+            },
+            {
+                question: "阿君和友人參加「反黑心食品」的遊行活動，卻因推擠維持秩序的警察而遭到逮捕，遊行群眾紛紛質疑警察執法的合理性，認為有執法過當和侵害人權的爭議。遊行群眾的觀點，反映出現代社會的何種法治觀點？",
+                options: [
+                    "人民必須遵守法律",
+                    "政府必須遵守法律",
+                    "警察擁有絕對權力",
+                    "法律促進社會進步"
+                ],
+                answer: 1,
+                explanation: "質疑警方執法過當，反映出政府也必須在法治範圍內合法行使權力。"
+            },
+            {
+                question: "在童話故事《睡美人》中，壞仙子詛咒公主被紡織機的紡錘刺破手指而喪命，國王為了避免公主受到傷害，於是下令全國人民禁止使用紡錘，並將所有的紡錘銷毀。若以現代政治觀點來判斷，該王國應為何種國家？",
+                options: [
+                    "法治國家",
+                    "民主國家",
+                    "人治國家",
+                    "自由國家"
+                ],
+                answer: 2,
+                explanation: "國王憑個人意志隨意下令禁止，屬於典型的人治國家。"
+            },
+            {
+                question: "下列何人主張將政府的權力分為立法、行政、司法三權，並分別由不同的政府機關獨立行使，各機關相互制衡，彼此監督？",
+                options: [
+                    "洛克",
+                    "孫中山",
+                    "孟德斯鳩",
+                    "馬基維利"
+                ],
+                answer: 2,
+                explanation: "法國思想家孟德斯鳩提出了著名的三權分立與制衡學說。"
+            },
+            {
+                question: "民間團體宣布成立「民間監督落實司改國是會議決議聯盟」，以監督政府落實司法改革國是會議的決議。聯盟建議各部會能設置政策對話窗口，協助官方與民間持續對話，並邀請民間團體參與修法或政策制訂，以減少推行的阻力。該聯盟擁有下列何者而能夠提出上述訴求？",
+                options: [
+                    "權利",
+                    "權力",
+                    "主權",
+                    "人權"
+                ],
+                answer: 0,
+                explanation: "民間團體監督與參與公共事務是行使言論與參與等基本權利。"
+            },
+            {
+                question: "上公民課時，老師解釋「權力」與「權利」兩概念的不同，請幫小美確認下列她的筆記內容，何者需要修正？",
+                options: [
+                    "人民可以行使投票權是「權利」",
+                    "警察執行夜間的臨檢是「權力」",
+                    "疫情期間申請紓困屬於「權利」",
+                    "罷免不適任公職人員是「權力」"
+                ],
+                answer: 3,
+                explanation: "罷免權是人民享有的參政權（權利），而非政府公權力。"
+            },
+            {
+                question: "下列關於法治社會的敘述，何者錯誤？",
+                options: [
+                    "明確規定人民與政府應遵守的事項",
+                    "以法律規範人們的內在動機與觀念",
+                    "統治者與人民皆須遵守法律的規範",
+                    "法律由人民選出來的代表共同制定"
+                ],
+                answer: 1,
+                explanation: "法律規範的是人的外在行為，而非內在動機與觀念。"
+            },
+            {
+                question: "□□是指法律保護人民享有的利益，保障人民不受任意侵害，並能請求特定利益。例如：人民在政治上有選舉權與罷免權。上述□□應填入下列何者？",
+                options: [
+                    "權利",
+                    "權力",
+                    "義務",
+                    "責任"
+                ],
+                answer: 0,
+                explanation: "此為「權利」的定義。"
+            },
+            {
+                question: "根據我國《憲法》規定，行政院院長由總統提名，經立法院同意任命之。這樣的規定最能展現下列何種概念？",
+                options: [
+                    "有限政府",
+                    "人治社會",
+                    "積極權利",
+                    "主權在民"
+                ],
+                answer: 0,
+                explanation: "透過憲法與民意機關同意權限制行政權，展現有限政府與制衡。"
+            },
+            {
+                question: "「權力」和「權利」的意義不同，在使用這兩個詞彙時必須區辨，下列哪一個選項的用詞正確？",
+                options: [
+                    "導師對學生有分配打掃工作的權利",
+                    "學生有投票選舉班聯會會長的權力",
+                    "學務主任對違規學生有記過的權力",
+                    "校長有任命教務主任等職務的權利"
+                ],
+                answer: 2,
+                explanation: "學務主任執行學校管教規範屬於學校管理公權力（權力）。"
+            },
+            {
+                question: "老師提醒學生上課應守秩序，避免干擾到其他同學的學習，這是強調何者的重要性？",
+                options: [
+                    "學校的公權力",
+                    "學生的學習權",
+                    "政府的統治權",
+                    "學生的隱私權"
+                ],
+                answer: 1,
+                explanation: "維護秩序是為了保障全體學生的受教權。"
+            },
+            {
+                question: "明朝皇帝朱元璋以宰相胡惟庸謀反一事為由，廢去丞相一職，使六部直接向皇帝負責，相權與君權合而為一，皇帝大權獨攬。關於這段歷史，下列推論何者正確？",
+                options: [
+                    "人民是國家的統治者",
+                    "執行法律有固定標準",
+                    "統治者不受法律約束",
+                    "立法目的是保障人民權利"
+                ],
+                answer: 2,
+                explanation: "皇帝大權獨攬、不受法律約束，屬於典型人治與君主專制。"
+            },
+            {
+                question: "民間團體主張應適度調高菸品健康福利捐的金額，以降低吸菸人口。主管機關表示，目前規定的菸捐若欲調整，必須請立法院修改相關規定。主管機關的上述態度與下列何者有關？",
+                options: [
+                    "政府施政必須依循法律",
+                    "菸捐有助增加財政收入",
+                    "法規內容需能與時俱進",
+                    "法律旨在保障人民權利"
+                ],
+                answer: 0,
+                explanation: "修法必須透過立法院，展現政府依法行政與依法治理。"
+            },
+            {
+                question: "美國國家權力分為三部分，這三部分權力相互之間保持獨立。理論上，三權是完全平等，並且互相制衡；每種權力都有限制另外兩種權力濫用的職能。一般認為其思想根源來自法國著名思想家孟德斯鳩的主張。根據上述內容判斷，美國國家權力的運作是依據下列哪項原則？",
+                options: [
+                    "中央集權",
+                    "五權分立",
+                    "三權分立",
+                    "責任政治"
+                ],
+                answer: 2,
+                explanation: "美國採行經典的三權分立與制衡原則。"
+            },
+            {
+                question: "孫中山主張監察機關應該獨立設置，俾能以超然公正的態度行使職權。這樣的設計用意主要是考量下列哪個原因？",
+                options: [
+                    "讓人民有機會參與國家事務",
+                    "避免行政機關濫用私人",
+                    "預防立法機關專制",
+                    "防止行政機關濫權"
+                ],
+                answer: 3,
+                explanation: "獨立設置監察機關旨在對政府官員進行彈劾、糾舉與審計，防止行政機關濫權。"
+            },
+            {
+                question: "《強制汽車責任保險法》第1條：「為使汽車交通事故所致傷害或死亡之受害人，迅速獲得基本保障，並維護道路交通安全，特制定本法。」由此可判斷，下列何者為制定該法的最主要目的？",
+                options: [
+                    "監督政府依法行政",
+                    "避免政府濫用權利",
+                    "維護國家主權獨立",
+                    "落實保障人民權利"
+                ],
+                answer: 3,
+                explanation: "保險法規的核心目的在於落實保障人民權益與基本保障。"
+            },
+            {
+                question: "我國中央政府除了總統外，分別設立行政、司法、立法、考試與監察等五院。這樣的組織設計是民主政治的何種表現？",
+                options: [
+                    "中央集權",
+                    "責任政治",
+                    "分權制衡",
+                    "主權在民"
+                ],
+                answer: 2,
+                explanation: "五院分立展現了分權制衡的精神。"
+            },
+            {
+                question: "名威在歷史電視劇中，看到一段劇情：「某位皇帝出巡時，只因有孩童擋道，一怒之下就無視法律，逕自下令將孩童一家發配邊疆。」由上述內容推論，關於電視劇時代背景的敘述何者正確？",
+                options: [
+                    "該時期的統治者不受法律的約束",
+                    "該時期的統治者會遵循法律而治",
+                    "該時期法律的制定者為全體人民",
+                    "該時期法律較嚴苛且規範所有人"
+                ],
+                answer: 0,
+                explanation: "皇帝一句話凌駕法律，顯示統治者不受法律約束的人治社會。"
+            },
+            {
+                question: "《中華民國憲法》第137條規定：「中華民國之國防，以保衛國家安全，維護世界和平為目的。國防之組織，以法律定之。」根據畫線處，下列何者最有可能為該條文制定的理由？",
+                options: [
+                    "保障人民的權利",
+                    "維護人民的權力",
+                    "避免政府侵害人民權利",
+                    "展現國家對人民的主權"
+                ],
+                answer: 2,
+                explanation: "以法律明定國防組織，是為了規範軍事公權力，避免政府濫權侵害人權。"
+            },
+            {
+                question: "孫中山主張監察機關應該獨立設置，俾能以超然公正的態度行使職權。這樣的設計用意主要是考量下列哪個原因？",
+                options: [
+                    "讓人民有機會參與國家事務",
+                    "避免行政機關濫用私人的缺點",
+                    "預防立法機關專制的弊病",
+                    "防止行政機關濫權的問題"
+                ],
+                answer: 3,
+                explanation: "獨立監察權主要目的在於防止行政官員與機關濫權與貪腐。"
+            }
+        ];
+
+        // Game State Variables
+        let players = [];
+        let activePlayerIndex = 0;
+        let isRolling = false;
+        let gameActive = false;
+        let finishedPlayers = [];
+        let availableQuestions = [];
+
+        // Initialize setup UI on load
+        window.addEventListener('DOMContentLoaded', () => {
+            renderPlayerInputs();
+        });
+
+        function renderPlayerInputs() {
+            const container = document.getElementById('player-inputs-container');
+            container.innerHTML = '';
+            defaultPlayerConfigs.forEach((p, idx) => {
+                container.innerHTML += `
+                    <div class="flex items-center space-x-3 bg-amber-50/50 p-3 rounded-2xl border border-amber-200">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-sm bg-white" style="border-color: ${p.color}; border-width: 2px;">
+                            ${p.animal}
+                        </div>
+                        <input type="text" id="p-input-${idx}" value="${p.name}" class="bg-white border border-slate-300 text-slate-800 text-sm font-bold rounded-xl px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="輸入同學姓名">
+                    </div>
+                `;
+            });
+        }
+
+        function startGame() {
+            players = [];
+            for (let i = 0; i < 8; i++) {
+                const inputVal = document.getElementById(`p-input-${i}`).value.trim();
+                players.push({
+                    id: i,
+                    name: inputVal || defaultPlayerConfigs[i].name,
+                    animal: defaultPlayerConfigs[i].animal,
+                    color: defaultPlayerConfigs[i].color,
+                    position: 0,
+                    finished: false
+                });
+            }
+
+            activePlayerIndex = 0;
+            gameActive = true;
+            finishedPlayers = [];
+            resetQuestionPool();
+
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+
+            initBoard();
+            updateUI();
+        }
+
+        function resetQuestionPool() {
+            availableQuestions = [...masterQuestionBank];
+            shuffleArray(availableQuestions);
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function getNextQuestion() {
+            if (availableQuestions.length === 0) {
+                resetQuestionPool();
+            }
+            return availableQuestions.pop();
+        }
+
+        function resetGame() {
+            document.getElementById('victory-modal').classList.add('hidden');
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('setup-screen').classList.remove('hidden');
+            gameActive = false;
+        }
+
+        // Initialize 10x10 Rectangular Loop Board with 35 Tiles and Center Info Box
+        function initBoard() {
+            const board = document.getElementById('monopoly-board');
+            board.innerHTML = '';
+
+            for (let r = 0; r < 10; r++) {
+                for (let c = 0; c < 10; c++) {
+                    const cellDiv = document.createElement('div');
+                    const tileIndex = tileCoordinates.findIndex(t => t.r === r && t.c === c);
+                    
+                    if (tileIndex !== -1) {
+                        const colorClass = pastelColors[tileIndex % pastelColors.length];
+                        const isChance = (tileIndex > 0 && tileIndex % 5 === 0); // 5, 10, 15, 20, 25, 30, 35
+                        
+                        cellDiv.className = `rounded-xl relative flex flex-col justify-between p-1 border-2 shadow-sm ${colorClass} overflow-hidden ${isChance ? 'ring-4 ring-amber-400 ring-offset-1' : ''}`;
+                        cellDiv.id = `grid-cell-${r}-${c}`;
+                        
+                        let labelText = `#${tileIndex}`;
+                        if (tileIndex === 0) labelText = "起點";
+                        if (tileIndex === 34 || tileIndex === 35) labelText = "終點";
+
+                        cellDiv.innerHTML = `
+                            <div class="flex justify-between items-center w-full px-0.5 z-10">
+                                <span class="text-[10px] md:text-xs font-black opacity-90">${labelText}</span>
+                                ${isChance ? '<span class="text-[9px] bg-amber-500 text-white px-1 rounded font-black shadow-xs">🎁機</span>' : ''}
+                            </div>
+                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <span class="text-2xl md:text-4xl lg:text-5xl font-black opacity-30 tracking-tighter">${tileIndex}</span>
+                            </div>
+                            <div id="tile-pawns-${tileIndex}" class="flex flex-wrap gap-0.5 justify-center z-10 mt-auto"></div>
+                        `;
+                    } else {
+                        // Center inner area (rows 1-8, cols 1-8)
+                        if (r === 1 && c === 1) {
+                            cellDiv.className = "col-span-8 row-span-8 col-start-2 row-start-2 bg-gradient-to-br from-emerald-700 to-teal-800 text-white rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-inner border-4 border-emerald-500 z-10";
+                            cellDiv.innerHTML = `
+                                <div class="bg-amber-400 text-amber-950 px-3 py-1 rounded-full text-xs font-black mb-1 shadow">
+                                    <i class="fa-solid fa-graduation-cap mr-1"></i> 國二公民互動學習
+                                </div>
+                                <h2 class="text-xl md:text-2xl lg:text-3xl font-black tracking-wider mb-2 text-amber-100 drop-shadow">公民大富翁</h2>
+                                
+                                <!-- Embedded 3D Dice Animation Box -->
+                                <div onclick="rollDice()" class="my-2 bg-white/10 hover:bg-white/20 border-2 border-amber-300/60 rounded-2xl p-3 cursor-pointer transition transform hover:scale-105 shadow-lg flex flex-col items-center justify-center w-full max-w-[220px]">
+                                    <div class="text-5xl md:text-6xl animate-bounce mb-1" id="center-dice-icon">🎲</div>
+                                    <div class="text-amber-200 text-xs font-black tracking-widest uppercase">點此擲骰子</div>
+                                    <div class="text-white text-lg font-black mt-1"><span id="center-dice-result">點數: ?</span></div>
+                                </div>
+
+                                <div class="bg-emerald-900/60 border border-emerald-400/40 rounded-xl px-3 py-1 text-xs text-emerald-200 mt-1">
+                                    <span id="center-status-msg">輪到 玩家1 擲骰子回答公民考題！</span>
+                                </div>
+                            `;
+                        } else {
+                            cellDiv.style.display = 'none';
+                        }
+                    }
+                    board.appendChild(cellDiv);
+                }
+            }
+            renderPawns();
+        }
+
+        function renderPawns() {
+            for (let i = 0; i < 35; i++) {
+                const container = document.getElementById(`tile-pawns-${i}`);
+                if (container) container.innerHTML = '';
+            }
+
+            players.forEach(p => {
+                const pos = Math.min(p.position, 34);
+                const container = document.getElementById(`tile-pawns-${pos}`);
+                if (container) {
+                    const pawnSpan = document.createElement('div');
+                    pawnSpan.className = `w-7 h-7 md:w-9 md:h-9 rounded-xl flex items-center justify-center text-base md:text-lg shadow-md transform transition-all ${p.finished ? 'opacity-50 scale-75' : 'animate-bounce-short bg-white border-2'}`;
+                    pawnSpan.style.borderColor = p.color;
+                    pawnSpan.title = `${p.name} (${p.animal})`;
+                    pawnSpan.innerText = p.animal;
+                    container.appendChild(pawnSpan);
+                }
+            });
+        }
+
+        function updateUI() {
+            const currentP = players[activePlayerIndex];
+            
+            document.getElementById('current-player-name').innerText = currentP.name;
+            const avatar = document.getElementById('current-player-avatar');
+            avatar.innerText = currentP.animal;
+            avatar.style.borderColor = currentP.color;
+            avatar.style.borderWidth = "3px";
+            document.getElementById('current-player-pos').innerText = `第 ${currentP.position} 格 / 35格`;
+            
+            const centerMsg = document.getElementById('center-status-msg');
+            if (centerMsg) {
+                centerMsg.innerText = `現在由 ${currentP.animal} ${currentP.name} 進行回合，請點擊中央骰子！`;
+            }
+
+            if (currentP.finished) {
+                nextPlayerTurn();
+                return;
+            }
+
+            renderLeaderboard();
+            renderPawns();
+        }
+
+        function renderLeaderboard() {
+            const listContainer = document.getElementById('leaderboard-list');
+            listContainer.innerHTML = '';
+
+            const sortedPlayers = [...players].sort((a, b) => {
+                if (b.position !== a.position) return b.position - a.position;
+                return a.id - b.id;
+            });
+
+            sortedPlayers.forEach((p, index) => {
+                const isCurrent = (p.id === activePlayerIndex && gameActive && !p.finished);
+                listContainer.innerHTML += `
+                    <div class="flex items-center justify-between p-2 rounded-xl border ${isCurrent ? 'border-amber-300 bg-white/20 shadow-sm' : 'border-amber-500/20 bg-white/10'}">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-black text-amber-300 w-4">#${index + 1}</span>
+                            <div class="w-7 h-7 rounded-lg bg-white/90 flex items-center justify-center text-sm shadow-xs border-2" style="border-color: ${p.color}">
+                                ${p.animal}
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-black text-white">${p.name} ${p.finished ? '<span class="text-[10px] text-emerald-300 font-bold">(已抵達)</span>' : ''}</h4>
+                                <div class="text-[9px] text-amber-200/80">位置：第 ${p.position} 格</div>
+                            </div>
+                        </div>
+                        <div class="text-[10px] font-bold ${isCurrent ? 'text-amber-200 bg-amber-500/30 px-2 py-0.5 rounded-full' : 'text-amber-300/40'}">
+                            ${isCurrent ? '輪到你' : ''}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function rollDice() {
+            if (isRolling || !gameActive) return;
+            isRolling = true;
+
+            const rollBtn = document.getElementById('roll-dice-btn');
+            rollBtn.disabled = true;
+            rollBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('dice-icon').classList.add('dice-animating');
+            const centerDiceIcon = document.getElementById('center-dice-icon');
+            if (centerDiceIcon) centerDiceIcon.classList.add('dice-animating');
+
+            const diceBox = document.getElementById('dice-display-box');
+            diceBox.classList.remove('hidden');
+            document.getElementById('dice-placeholder-text').classList.add('hidden');
+            
+            let counter = 0;
+            const rollInterval = setInterval(() => {
+                const tempRoll = Math.floor(Math.random() * 6) + 1;
+                document.getElementById('dice-result-num').innerText = tempRoll;
+                const centerResult = document.getElementById('center-dice-result');
+                if (centerResult) centerResult.innerText = `點數: ${tempRoll}`;
+                counter++;
+                if (counter > 12) {
+                    clearInterval(rollInterval);
+                    const finalRoll = Math.floor(Math.random() * 6) + 1;
+                    document.getElementById('dice-result-num').innerText = finalRoll;
+                    if (centerResult) centerResult.innerText = `點數: ${finalRoll}`;
+                    isRolling = false;
+                    document.getElementById('dice-icon').classList.remove('dice-animating');
+                    if (centerDiceIcon) centerDiceIcon.classList.remove('dice-animating');
+                    
+                    setTimeout(() => {
+                        rollBtn.disabled = false;
+                        rollBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        
+                        processPostRoll(finalRoll);
+                    }, 500);
+                }
+            }, 60);
+        }
+
+        let currentChallengeData = {
+            diceRoll: 0,
+            targetPosition: 0,
+            correctAnswer: 0,
+            isChanceMode: false
+        };
+
+        function processPostRoll(diceRoll) {
+            const currentP = players[activePlayerIndex];
+            const targetPos = Math.min(currentP.position + diceRoll, 34);
+            currentChallengeData.diceRoll = diceRoll;
+            currentChallengeData.targetPosition = targetPos;
+            currentChallengeData.isChanceMode = false;
+
+            // Check if target position is a Chance Tile (5, 10, 15, 20, 25, 30, 35)
+            if (targetPos > 0 && targetPos % 5 === 0) {
+                currentP.position = targetPos;
+                if (targetPos >= 34 && !currentP.finished) {
+                    currentP.finished = true;
+                    finishedPlayers.push(currentP);
+                }
+                renderPawns();
+                updateUI();
+                
+                document.getElementById('chance-modal').classList.remove('hidden');
+                return;
+            }
+
+            triggerNormalQuestionChallenge(targetPos);
+        }
+
+        function triggerNormalQuestionChallenge(targetPos) {
+            const currentP = players[activePlayerIndex];
+            const q = getNextQuestion();
+            currentChallengeData.correctAnswer = q.answer;
+            window.activeCurrentQuestion = q;
+
+            document.getElementById('q-category-tag').innerText = "康軒二上第三單元";
+            document.getElementById('q-target-tile').innerText = targetPos;
+            document.getElementById('q-title').innerText = `${currentP.animal} ${currentP.name} 擲出 ${currentChallengeData.diceRoll} 點，目標前往第 ${targetPos} 格！\n\n【公民考題】${q.question}`;
+            
+            renderQuestionOptions(q);
+            document.getElementById('q-feedback').classList.add('hidden');
+            document.getElementById('q-next-btn').classList.add('hidden');
+            document.getElementById('question-modal').classList.remove('hidden');
+        }
+
+        function renderQuestionOptions(q) {
+            const optionsContainer = document.getElementById('q-options');
+            optionsContainer.innerHTML = '';
+            q.options.forEach((opt, idx) => {
+                optionsContainer.innerHTML += `
+                    <button onclick="handleAnswer(${idx})" class="w-full text-left bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 p-3 rounded-xl text-sm font-bold text-slate-700 transition flex items-center space-x-3 group">
+                        <span class="w-6 h-6 rounded-lg bg-slate-200 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center text-xs font-black transition">${String.fromCharCode(65 + idx)}</span>
+                        <span>${opt}</span>
+                    </button>
+                `;
+            });
+        }
+
+        function acceptChanceChallenge() {
+            document.getElementById('chance-modal').classList.add('hidden');
+            currentChallengeData.isChanceMode = true;
+
+            const currentP = players[activePlayerIndex];
+            const q = getNextQuestion();
+            currentChallengeData.correctAnswer = q.answer;
+            window.activeCurrentQuestion = q;
+
+            document.getElementById('q-category-tag').innerText = "🎁 機會附加題";
+            document.getElementById('q-target-tile').innerText = currentP.position;
+            document.getElementById('q-title').innerText = `${currentP.animal} ${currentP.name} 接受了機會挑戰！\n\n【公民附加考題】${q.question}`;
+            
+            const optionsContainer = document.getElementById('q-options');
+            optionsContainer.innerHTML = '';
+            q.options.forEach((opt, idx) => {
+                optionsContainer.innerHTML += `
+                    <button onclick="handleAnswer(${idx})" class="w-full text-left bg-amber-50 hover:bg-amber-100 border border-amber-200 hover:border-amber-400 p-3 rounded-xl text-sm font-bold text-slate-700 transition flex items-center space-x-3 group">
+                        <span class="w-6 h-6 rounded-lg bg-amber-200 group-hover:bg-amber-600 group-hover:text-white flex items-center justify-center text-xs font-black transition">${String.fromCharCode(65 + idx)}</span>
+                        <span>${opt}</span>
+                    </button>
+                `;
+            });
+
+            document.getElementById('q-feedback').classList.add('hidden');
+            document.getElementById('q-next-btn').classList.add('hidden');
+            document.getElementById('question-modal').classList.remove('hidden');
+        }
+
+        function skipChanceChallenge() {
+            document.getElementById('chance-modal').classList.add('hidden');
+            document.getElementById('dice-display-box').classList.add('hidden');
+            document.getElementById('dice-placeholder-text').classList.remove('hidden');
+            nextPlayerTurn();
+        }
+
+        function handleAnswer(selectedIndex) {
+            const currentP = players[activePlayerIndex];
+            const isCorrect = (selectedIndex === currentChallengeData.correctAnswer);
+            const currentQ = window.activeCurrentQuestion || masterQuestionBank[0];
+            
+            const feedbackDiv = document.getElementById('q-feedback');
+            feedbackDiv.classList.remove('hidden');
+
+            const buttons = document.querySelectorAll('#q-options button');
+            buttons.forEach(btn => btn.disabled = true);
+
+            if (isCorrect) {
+                if (currentChallengeData.isChanceMode) {
+                    feedbackDiv.className = "rounded-2xl p-4 text-sm font-bold mb-4 bg-emerald-50 text-emerald-800 border border-emerald-200";
+                    feedbackDiv.innerHTML = `<i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>機會附加題回答正確！您可以選擇特權獎勵！`;
+                    document.getElementById('q-next-btn').classList.add('hidden');
+                    
+                    setTimeout(() => {
+                        document.getElementById('question-modal').classList.add('hidden');
+                        openChanceRewardModal();
+                    }, 1200);
+                    return;
+                } else {
+                    feedbackDiv.className = "rounded-2xl p-4 text-sm font-bold mb-4 bg-emerald-50 text-emerald-800 border border-emerald-200";
+                    feedbackDiv.innerHTML = `<i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>回答正確！順利前進 ${currentChallengeData.diceRoll} 步，抵達第 ${currentChallengeData.targetPosition} 格！`;
+                    
+                    currentP.position = currentChallengeData.targetPosition;
+
+                    if (currentP.position >= 34 && !currentP.finished) {
+                        currentP.finished = true;
+                        finishedPlayers.push(currentP);
+                    }
+                }
+            } else {
+                feedbackDiv.className = "rounded-2xl p-4 text-sm font-bold mb-4 bg-rose-50 text-rose-800 border border-rose-200";
+                const correctOptionLetter = String.fromCharCode(65 + currentQ.answer);
+                const correctOptionText = currentQ.options[currentQ.answer];
+                
+                if (currentChallengeData.isChanceMode) {
+                    feedbackDiv.innerHTML = `
+                        <div class="space-y-1">
+                            <div><i class="fa-solid fa-circle-xmark mr-1 text-rose-600"></i><strong>機會附加題回答錯誤！</strong>無法獲得特權獎勵。</div>
+                            <div class="mt-2 pt-2 border-t border-rose-200 text-xs">
+                                <span class="font-black text-emerald-700">【正確解答】</span> (${correctOptionLetter}) ${correctOptionText}<br>
+                                <span class="font-black text-slate-700">【詳細解析】</span> ${currentQ.explanation}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    feedbackDiv.innerHTML = `
+                        <div class="space-y-1">
+                            <div><i class="fa-solid fa-circle-xmark mr-1 text-rose-600"></i><strong>回答錯誤！</strong>根據規則「答對才能前進，否則留在原地」，您將留在原位（第 ${currentP.position} 格）。</div>
+                            <div class="mt-2 pt-2 border-t border-rose-200 text-xs leading-relaxed">
+                                <span class="font-black text-emerald-700">【正確解答】</span> (${correctOptionLetter}) ${correctOptionText}<br>
+                                <span class="font-black text-slate-700">【詳細解析】</span> ${currentQ.explanation}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            document.getElementById('q-next-btn').classList.remove('hidden');
+        }
+
+        function openChanceRewardModal() {
+            const select = document.getElementById('target-opponent-select');
+            select.innerHTML = '';
+            players.forEach(p => {
+                if (p.id !== activePlayerIndex) {
+                    select.innerHTML += `<option value="${p.id}">${p.animal} ${p.name} (目前第 ${p.position} 格)</option>`;
+                }
+            });
+            document.getElementById('chance-reward-modal').classList.remove('hidden');
+        }
+
+        function applyChanceReward(choice) {
+            const currentP = players[activePlayerIndex];
+            if (choice === 'forward') {
+                currentP.position = Math.min(currentP.position + 2, 34);
+                if (currentP.position >= 34 && !currentP.finished) {
+                    currentP.finished = true;
+                    finishedPlayers.push(currentP);
+                }
+            } else if (choice === 'backward') {
+                const targetId = parseInt(document.getElementById('target-opponent-select').value);
+                const targetP = players.find(p => p.id === targetId);
+                if (targetP) {
+                    targetP.position = Math.max(targetP.position - 2, 0);
+                    targetP.finished = false;
+                }
+            }
+
+            document.getElementById('chance-reward-modal').classList.add('hidden');
+            document.getElementById('dice-display-box').classList.add('hidden');
+            document.getElementById('dice-placeholder-text').classList.remove('hidden');
+            
+            if (finishedPlayers.length >= Math.min(players.length, 3) || finishedPlayers.length === players.length) {
+                triggerVictory();
+                return;
+            }
+
+            nextPlayerTurn();
+        }
+
+        function closeQuestionModal() {
+            document.getElementById('question-modal').classList.add('hidden');
+            document.getElementById('dice-display-box').classList.add('hidden');
+            document.getElementById('dice-placeholder-text').classList.remove('hidden');
+            
+            if (finishedPlayers.length >= Math.min(players.length, 3) || finishedPlayers.length === players.length) {
+                triggerVictory();
+                return;
+            }
+
+            nextPlayerTurn();
+        }
+
+        function nextPlayerTurn() {
+            let nextIdx = (activePlayerIndex + 1) % players.length;
+            let loopCount = 0;
+            while (players[nextIdx].finished && loopCount < players.length) {
+                nextIdx = (nextIdx + 1) % players.length;
+                loopCount++;
+            }
+
+            if (loopCount >= players.length || finishedPlayers.length === players.length) {
+                triggerVictory();
+                return;
+            }
+
+            activePlayerIndex = nextIdx;
+            updateUI();
+        }
+
+        function triggerVictory() {
+            gameActive = false;
+            document.getElementById('question-modal').classList.add('hidden');
+            document.getElementById('chance-modal').classList.add('hidden');
+            document.getElementById('chance-reward-modal').classList.add('hidden');
+
+            const winner = finishedPlayers.length > 0 ? finishedPlayers[0] : players[0];
+            document.getElementById('winner-announcement').innerText = `恭喜 ${winner.animal} ${winner.name} 榮獲本次公民科達人總冠軍！`;
+
+            const finalRankingList = document.getElementById('final-ranking-list');
+            finalRankingList.innerHTML = '';
+
+            const allRanked = [...players].sort((a, b) => {
+                if (a.finished && !b.finished) return -1;
+                if (!a.finished && b.finished) return 1;
+                return b.position - a.position;
+            });
+
+            allRanked.forEach((p, idx) => {
+                finalRankingList.innerHTML += `
+                    <div class="flex items-center justify-between p-2 rounded-xl bg-white border border-amber-200">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-xs font-black text-amber-600 w-5">#${idx + 1}</span>
+                            <div class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-sm border-2" style="border-color: ${p.color}">
+                                ${p.animal}
+                            </div>
+                            <span class="text-xs font-bold text-slate-800">${p.name}</span>
+                        </div>
+                        <span class="text-xs font-bold text-slate-500">位置：第 ${p.position} 格</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('victory-modal').classList.remove('hidden');
+        }
+
+        function openRulesModal() {
+            document.getElementById('rules-modal').classList.remove('hidden');
+        }
+
+        function closeRulesModal() {
+            document.getElementById('rules-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
